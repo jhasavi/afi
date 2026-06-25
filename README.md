@@ -65,6 +65,8 @@ docker compose up --build
 curl http://localhost:3000/api/health
 ```
 
+See [docs/INTEGRATION_NB.md](docs/INTEGRATION_NB.md) for Namaste Boston Mission Control sync.
+
 ## Integrations (future, behind flags)
 
 Gmail sync, CRM sync, and SMS are scaffolded but **disabled by default**. See [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).

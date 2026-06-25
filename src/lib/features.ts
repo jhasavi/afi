@@ -30,8 +30,9 @@ export const FEATURE_DESCRIPTIONS: Record<
     status: "coming_soon",
   },
   CRM_SYNC: {
-    title: "CRM contact import",
-    description: "One-way import from HubSpot, Salesforce, or CSV. No auto-sync yet.",
+    title: "NB Mission Control sync",
+    description:
+      "One-way import from Namaste Boston CRM (~/nb). Configure NB_API_BASE_URL + NB_API_KEY.",
     status: "coming_soon",
   },
   SMS_SEND: {

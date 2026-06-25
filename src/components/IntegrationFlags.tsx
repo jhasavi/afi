@@ -1,6 +1,7 @@
 import { getFeatureStatus, FEATURE_DESCRIPTIONS, type FeatureFlag } from "@/lib/features";
 import { getOpenAIDailyCap } from "@/lib/env";
 import { isOpenAIEnabled } from "@/lib/ai/config";
+import { isNbSyncConfigured } from "@/lib/integrations/nb";
 
 const FLAG_ORDER: FeatureFlag[] = ["GMAIL_SYNC", "CRM_SYNC", "SMS_SEND"];
 
@@ -19,7 +20,8 @@ export function IntegrationFlags() {
       <ul className="space-y-3">
         {FLAG_ORDER.map((key) => {
           const meta = FEATURE_DESCRIPTIONS[key];
-          const enabled = flags[key];
+          const enabled =
+            key === "CRM_SYNC" ? isNbSyncConfigured() : flags[key];
           return (
             <li
               key={key}
