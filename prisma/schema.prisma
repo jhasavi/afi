@@ -1,0 +1,174 @@
+// AdvisorFlow AI — data model
+// Uses SQLite for zero-config local dev. The schema is intentionally
+// Postgres/Supabase-portable: enums are stored as strings, tags as JSON text.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+
+  // Profile
+  name                String
+  companyName         String?
+  role                String? // free text role, e.g. "Realtor", "Loan Officer"
+  businessType        String  @default("Real estate agent")
+  serviceAreas        String? // comma-separated towns/cities
+  primaryBusinessFocus String?
+
+  // Preferences
+  communicationStyle    String  @default("Warm advisor")
+  aiStylePreference     String  @default("Warm advisor")
+  dailyContactGoal      Int     @default(5)
+  defaultFollowUpDays   Int     @default(14)
+  defaultDisclaimer     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts        Contact[]
+  interactions    Interaction[]
+  messageLogs     MessageLog[]
+  recommendations DailyRecommendation[]
+  auditLogs       AuditLog[]
+  passwordResets  PasswordResetToken[]
+  aiUsageLogs     AiUsageLog[]
+}
+
+model Contact {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name                 String
+  email                String?
+  phone                String?
+  category             String  @default("Other")
+  town                 String?
+  notes                String?
+  relationshipStrength Int     @default(3) // 1 (weak) - 5 (strong)
+  lastContactedAt      DateTime?
+  nextFollowUpAt       DateTime?
+  status               String  @default("New")
+  opportunityType      String  @default("General relationship nurture")
+  source               String?
+  tags                 String? // JSON array of strings
+  pipelineStage        String  @default("Long-Term Nurture")
+  estimatedValue       Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  interactions    Interaction[]
+  messageLogs     MessageLog[]
+  recommendations DailyRecommendation[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, pipelineStage])
+}
+
+model Interaction {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  date        DateTime @default(now())
+  type        String   @default("Text") // Text, Email, Call, Voicemail, Meeting, Social message, In-person conversation, Other
+  channel     String?
+  messageUsed String?
+  notes       String?
+  response    String   @default("No response yet") // No response yet, Positive, Neutral, Not now, Negative
+  nextAction  String?
+  followUpAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([contactId])
+}
+
+model MessageLog {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  channel   String  @default("text") // text, email, call, voicemail, social, follow-up
+  content   String
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([contactId])
+}
+
+// Cached "Today's 5" so a day's list is stable and metrics are trackable.
+model DailyRecommendation {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  forDate         String   // YYYY-MM-DD (local) the recommendation is for
+  reason          String
+  suggestedMessage String
+  channel         String
+  nextStep        String
+  followUpDate    DateTime?
+  priorityScore   Int
+  rank            Int      @default(0)
+  status          String   @default("pending") // pending, sent, skipped
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, forDate, contactId])
+  @@index([userId, forDate])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
+
+model AiUsageLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
