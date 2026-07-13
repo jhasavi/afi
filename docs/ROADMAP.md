@@ -8,7 +8,7 @@
 - [x] Pipeline board + weekly dashboard
 - [x] Template mode + optional OpenAI with fallback
 - [x] Interaction logging (draft-only, no outbound send)
-- [x] Production foundations: env validation, middleware, Docker, CI, tests
+- [x] Production foundations: env validation, middleware, CI, tests
 - [x] Onboarding, snooze, response workflow, weekly review
 - [x] Feature flags + integration stubs
 

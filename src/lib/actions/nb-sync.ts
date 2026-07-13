@@ -12,6 +12,7 @@ import { requireContactCapacity, requireNbSync } from "@/lib/billing/entitlement
 export type NbSyncResult = {
   imported: number;
   skipped: number;
+  refreshed: number;
   errors: number;
   total: number;
   linked: number;
@@ -42,9 +43,23 @@ async function runNbSync(
 
   const existing = await prisma.contact.findMany({
     where: { userId },
-    select: { id: true, email: true, phone: true, name: true, nbClientId: true },
+    select: {
+      id: true,
+      email: true,
+      phone: true,
+      name: true,
+      nbClientId: true,
+      lastContactedAt: true,
+      nextFollowUpAt: true,
+      status: true,
+      town: true,
+      opportunityType: true,
+    },
   });
 
+  const byNbId = new Map(
+    existing.filter((c) => c.nbClientId).map((c) => [c.nbClientId!, c])
+  );
   const existingEmails = new Map(
     existing
       .filter((c) => c.email)
@@ -57,7 +72,14 @@ async function runNbSync(
   );
   const existingNames = new Map(existing.map((c) => [c.name.trim().toLowerCase(), c]));
 
-  const result: NbSyncResult = { imported: 0, skipped: 0, errors: 0, total: contacts.length, linked: 0 };
+  const result: NbSyncResult = {
+    imported: 0,
+    skipped: 0,
+    refreshed: 0,
+    errors: 0,
+    total: contacts.length,
+    linked: 0,
+  };
 
   for (const row of contacts) {
     const name = row.name?.trim();
@@ -72,19 +94,41 @@ async function runNbSync(
     const lowerName = name.toLowerCase();
 
     const match =
+      (row.nbClientId && byNbId.get(row.nbClientId)) ||
       (email && existingEmails.get(email)) ||
       (normPhone && existingPhones.get(normPhone)) ||
       (!email && !normPhone && existingNames.get(lowerName));
 
     if (match) {
+      const status = row.status || match.status || "New";
+      const data: {
+        nbClientId?: string | null;
+        lastContactedAt?: Date | null;
+        nextFollowUpAt?: Date | null;
+        status?: string;
+        town?: string | null;
+        opportunityType?: string;
+        pipelineStage?: string;
+      } = {};
+
       if (row.nbClientId && !match.nbClientId) {
-        await prisma.contact.update({
-          where: { id: match.id },
-          data: { nbClientId: row.nbClientId },
-        });
+        data.nbClientId = row.nbClientId;
         result.linked += 1;
       }
-      result.skipped += 1;
+
+      // MC is source of truth for touch dates and light CRM fields on refresh
+      data.lastContactedAt = row.lastContactedAt ? new Date(row.lastContactedAt) : null;
+      data.nextFollowUpAt = row.nextFollowUpAt ? new Date(row.nextFollowUpAt) : null;
+      if (row.status) {
+        data.status = status;
+        data.pipelineStage = statusToStage(status);
+      }
+      if (row.town !== undefined) data.town = row.town || null;
+      if (row.opportunityType) data.opportunityType = row.opportunityType;
+
+      await prisma.contact.update({ where: { id: match.id }, data });
+      if (row.nbClientId) byNbId.set(row.nbClientId, { ...match, nbClientId: row.nbClientId });
+      result.refreshed += 1;
       continue;
     }
 
@@ -121,9 +165,22 @@ async function runNbSync(
         },
       });
 
-      if (email) existingEmails.set(email, { id: "", email, phone, name, nbClientId: row.nbClientId });
-      if (normPhone) existingPhones.set(normPhone, { id: "", email, phone, name, nbClientId: row.nbClientId });
-      existingNames.set(lowerName, { id: "", email, phone, name, nbClientId: row.nbClientId });
+      const created = {
+        id: "new",
+        email,
+        phone,
+        name,
+        nbClientId: row.nbClientId || null,
+        lastContactedAt: null,
+        nextFollowUpAt: null,
+        status,
+        town: row.town || null,
+        opportunityType: row.opportunityType || "General relationship nurture",
+      };
+      if (email) existingEmails.set(email, created);
+      if (normPhone) existingPhones.set(normPhone, created);
+      existingNames.set(lowerName, created);
+      if (row.nbClientId) byNbId.set(row.nbClientId, created);
       result.imported += 1;
     } catch {
       result.errors += 1;

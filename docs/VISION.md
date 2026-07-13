@@ -55,14 +55,14 @@ If a feature doesn't strengthen that loop, it is secondary.
 - Success: systematic partner nurture without compliance anxiety
 
 ### Avery Group — Small team (Team plan)
-- Shared CRM / Mission Control as source of truth
-- Needs import + write-back of touch dates, not another CRM
+- Shared CRM / Mission Control as **source of truth** (never replace MC)
+- Needs import + write-back of touch dates — AFI is the morning action layer
 - Success: no warm lead goes quiet because nobody followed up
 
 ## Go-to-market wedge
 
-1. **Customer zero:** Namaste Boston advisors on Team (Mission Control sync + write-back)
-2. **Public solo:** Free → Solo Pro trial for CSV-first independents
+1. **Customer zero:** Namaste Boston advisors on Team — MC stays SoR; AFI adds daily outreach
+2. **Public solo:** Free → Solo Pro trial for CSV-first independents (no MC required)
 3. **Later:** brokerage white-label after retention proof
 
 Prove the daily loop with a real CRM integration before scaling generic SEO/content.

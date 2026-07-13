@@ -26,7 +26,7 @@ export function NbSyncPanel({
         return;
       }
       setResult(
-        `Imported ${res.imported} contacts from NB Mission Control (${res.skipped} skipped as duplicates, ${res.linked} linked, ${res.errors} errors, ${res.total} exported).`
+        `Synced ${res.total} from MC: ${res.imported} new, ${res.refreshed} refreshed, ${res.linked} linked, ${res.errors} errors.`
       );
     });
   }

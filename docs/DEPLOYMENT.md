@@ -83,21 +83,6 @@ Default `DATABASE_URL="file:./dev.db"` uses SQLite via Prisma.
    npm run db:seed
    ```
 
-3. Or use Docker Compose (includes Postgres):
-
-   ```bash
-   docker compose up --build
-   ```
-
-## Docker
-
-```bash
-docker compose up --build
-```
-
-App: http://localhost:3000  
-Postgres: `localhost:5432` (user/pass/db: `advisorflow`)
-
 ## Health check
 
 ```

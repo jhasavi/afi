@@ -22,7 +22,7 @@ See [docs/VISION.md](docs/VISION.md) for product vision and [docs/ROADMAP.md](do
 - Onboarding checklist for new users
 - Plans & billing: Free / Solo Pro (14-day trial) / Team — see [docs/BILLING.md](docs/BILLING.md)
 - Namaste Boston Mission Control sync + write-back (Team) — see [docs/INTEGRATION_NB.md](docs/INTEGRATION_NB.md)
-- Production: Docker, Postgres schema, CI, health check, audit log, feature flags
+- Production: Postgres schema, CI, health check, audit log, feature flags
 
 ## Demo / template mode (default)
 
@@ -60,10 +60,9 @@ npx tsx scripts/smoke-test.ts --http-base=http://localhost:3000
 
 ## Production deployment
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Postgres, Docker, Vercel + Neon, and CI.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Postgres, Vercel + Neon, and CI.
 
 ```bash
-docker compose up --build
 curl http://localhost:3000/api/health
 ```
 
