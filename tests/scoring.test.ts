@@ -21,6 +21,7 @@ function makeContact(overrides: Partial<Contact> = {}): Contact {
     tags: null,
     pipelineStage: "Long-Term Nurture",
     estimatedValue: 10000,
+    nbClientId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build:vercel",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/nb-sync",
+      "schedule": "0 6 * * 1"
+    }
+  ]
+}

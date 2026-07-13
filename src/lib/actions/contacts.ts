@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUser, requireUserForAction } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { requireContactCapacity } from "@/lib/billing/entitlements";
 import { parseDateInput, stringifyTags } from "@/lib/utils";
 import { statusToStage } from "@/lib/constants";
 
@@ -40,6 +41,10 @@ export async function createContactAction(formData: FormData): Promise<void> {
   const user = await requireUser();
   const data = readContactForm(formData);
   if (!data.name) return;
+  const cap = await requireContactCapacity(user.id);
+  if (cap) {
+    redirect(`/contacts/new?error=${encodeURIComponent(cap.error)}`);
+  }
   await prisma.contact.create({ data: { ...data, userId: user.id } });
   revalidatePath("/contacts");
   revalidatePath("/pipeline");

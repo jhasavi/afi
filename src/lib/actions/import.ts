@@ -10,6 +10,7 @@ import {
   OPPORTUNITY_TYPES,
   statusToStage,
 } from "@/lib/constants";
+import { getEntitlementsForUser } from "@/lib/billing/entitlements";
 
 export type ImportRow = Record<string, string>;
 
@@ -40,6 +41,15 @@ export async function importContactsAction(rows: ImportRow[]): Promise<ImportRes
   const auth = await requireUserForAction();
   if (!auth.ok) return { error: auth.error };
   const user = auth.user;
+
+  const ent = await getEntitlementsForUser(user.id);
+  const existingCount = await prisma.contact.count({ where: { userId: user.id } });
+  let remaining = Math.max(0, ent.maxContacts - existingCount);
+  if (remaining === 0) {
+    return {
+      error: `Contact limit reached (${ent.maxContacts} on ${ent.name} plan). Upgrade at /pricing.`,
+    };
+  }
 
   const existing = await prisma.contact.findMany({
     where: { userId: user.id },
@@ -84,6 +94,11 @@ export async function importContactsAction(rows: ImportRow[]): Promise<ImportRes
       continue;
     }
 
+    if (remaining <= 0) {
+      result.skipped += 1;
+      continue;
+    }
+
     if (email) seenEmails.add(email);
     if (normPhone) seenPhones.add(normPhone);
     seenNames.add(lowerName);
@@ -114,6 +129,7 @@ export async function importContactsAction(rows: ImportRow[]): Promise<ImportRes
       tags: stringifyTags(tags),
       pipelineStage: statusToStage(status),
     });
+    remaining -= 1;
   }
 
   if (toCreate.length > 0) {

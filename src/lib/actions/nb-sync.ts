@@ -7,24 +7,26 @@ import { fetchNbContacts, isNbSyncConfigured } from "@/lib/integrations/nb";
 import { stringifyTags } from "@/lib/utils";
 import { statusToStage } from "@/lib/constants";
 import { logAudit } from "@/lib/audit";
+import { requireContactCapacity, requireNbSync } from "@/lib/billing/entitlements";
 
 export type NbSyncResult = {
   imported: number;
   skipped: number;
   errors: number;
   total: number;
+  linked: number;
 };
 
 function normalizePhone(p?: string): string {
   return (p || "").replace(/\D/g, "");
 }
 
-export async function syncFromNbAction(opts?: {
-  overdueOnly?: boolean;
-}): Promise<NbSyncResult | { error: string }> {
-  const auth = await requireUserForAction();
-  if (!auth.ok) return { error: auth.error };
+const SYNC_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
+async function runNbSync(
+  userId: string,
+  opts?: { overdueOnly?: boolean }
+): Promise<NbSyncResult | { error: string }> {
   if (!isNbSyncConfigured()) {
     return {
       error:
@@ -39,19 +41,23 @@ export async function syncFromNbAction(opts?: {
   if (error) return { error };
 
   const existing = await prisma.contact.findMany({
-    where: { userId: auth.user.id },
-    select: { email: true, phone: true, name: true },
+    where: { userId },
+    select: { id: true, email: true, phone: true, name: true, nbClientId: true },
   });
 
-  const existingEmails = new Set(
-    existing.map((c) => c.email?.toLowerCase()).filter(Boolean) as string[]
+  const existingEmails = new Map(
+    existing
+      .filter((c) => c.email)
+      .map((c) => [c.email!.toLowerCase(), c])
   );
-  const existingPhones = new Set(
-    existing.map((c) => normalizePhone(c.phone || "")).filter(Boolean)
+  const existingPhones = new Map(
+    existing
+      .map((c) => [normalizePhone(c.phone || ""), c] as const)
+      .filter(([p]) => p)
   );
-  const existingNames = new Set(existing.map((c) => c.name.trim().toLowerCase()));
+  const existingNames = new Map(existing.map((c) => [c.name.trim().toLowerCase(), c]));
 
-  const result: NbSyncResult = { imported: 0, skipped: 0, errors: 0, total: contacts.length };
+  const result: NbSyncResult = { imported: 0, skipped: 0, errors: 0, total: contacts.length, linked: 0 };
 
   for (const row of contacts) {
     const name = row.name?.trim();
@@ -65,13 +71,26 @@ export async function syncFromNbAction(opts?: {
     const normPhone = normalizePhone(phone || "");
     const lowerName = name.toLowerCase();
 
-    const isDup =
-      (email && existingEmails.has(email)) ||
-      (normPhone && existingPhones.has(normPhone)) ||
-      (!email && !normPhone && existingNames.has(lowerName));
+    const match =
+      (email && existingEmails.get(email)) ||
+      (normPhone && existingPhones.get(normPhone)) ||
+      (!email && !normPhone && existingNames.get(lowerName));
 
-    if (isDup) {
+    if (match) {
+      if (row.nbClientId && !match.nbClientId) {
+        await prisma.contact.update({
+          where: { id: match.id },
+          data: { nbClientId: row.nbClientId },
+        });
+        result.linked += 1;
+      }
       result.skipped += 1;
+      continue;
+    }
+
+    const cap = await requireContactCapacity(userId);
+    if (cap) {
+      result.errors += 1;
       continue;
     }
 
@@ -83,14 +102,12 @@ export async function syncFromNbAction(opts?: {
     try {
       await prisma.contact.create({
         data: {
-          userId: auth.user.id,
+          userId,
           name,
           email,
           phone,
           town: row.town || null,
-          notes: row.notes
-            ? `${row.notes}\n\n[NB client id: ${row.nbClientId}]`
-            : `[NB client id: ${row.nbClientId}]`,
+          notes: row.notes || null,
           category: row.category || "Other",
           status,
           opportunityType: row.opportunityType || "General relationship nurture",
@@ -100,20 +117,26 @@ export async function syncFromNbAction(opts?: {
           lastContactedAt: row.lastContactedAt ? new Date(row.lastContactedAt) : null,
           nextFollowUpAt: row.nextFollowUpAt ? new Date(row.nextFollowUpAt) : null,
           relationshipStrength: 3,
+          nbClientId: row.nbClientId || null,
         },
       });
 
-      if (email) existingEmails.add(email);
-      if (normPhone) existingPhones.add(normPhone);
-      existingNames.add(lowerName);
+      if (email) existingEmails.set(email, { id: "", email, phone, name, nbClientId: row.nbClientId });
+      if (normPhone) existingPhones.set(normPhone, { id: "", email, phone, name, nbClientId: row.nbClientId });
+      existingNames.set(lowerName, { id: "", email, phone, name, nbClientId: row.nbClientId });
       result.imported += 1;
     } catch {
       result.errors += 1;
     }
   }
 
+  await prisma.user.update({
+    where: { id: userId },
+    data: { lastNbSyncAt: new Date() },
+  });
+
   await logAudit("nb.sync_contacts", {
-    userId: auth.user.id,
+    userId,
     metadata: result,
   });
 
@@ -125,6 +148,55 @@ export async function syncFromNbAction(opts?: {
   return result;
 }
 
-export async function nbSyncStatusAction(): Promise<{ configured: boolean }> {
-  return { configured: isNbSyncConfigured() };
+/** Internal sync for cron jobs (no session). Caller must verify entitlements. */
+export async function runNbSyncForUser(
+  userId: string,
+  opts?: { overdueOnly?: boolean; skipEntitlementCheck?: boolean }
+): Promise<NbSyncResult | { error: string }> {
+  if (!opts?.skipEntitlementCheck) {
+    const gate = await requireNbSync(userId);
+    if (gate) return { error: gate.error };
+  }
+  return runNbSync(userId, opts);
+}
+
+export async function syncFromNbAction(opts?: {
+  overdueOnly?: boolean;
+}): Promise<NbSyncResult | { error: string }> {
+  const auth = await requireUserForAction();
+  if (!auth.ok) return { error: auth.error };
+
+  const gate = await requireNbSync(auth.user.id);
+  if (gate) return { error: gate.error };
+
+  return runNbSync(auth.user.id, opts);
+}
+
+/** Weekly auto-sync on login when Team plan and NB configured. */
+export async function maybeAutoSyncNb(userId: string): Promise<void> {
+  const gate = await requireNbSync(userId);
+  if (gate) return;
+  if (!isNbSyncConfigured()) return;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { lastNbSyncAt: true },
+  });
+  if (!user) return;
+
+  const stale =
+    !user.lastNbSyncAt || Date.now() - user.lastNbSyncAt.getTime() > SYNC_INTERVAL_MS;
+  if (!stale) return;
+
+  try {
+    await runNbSync(userId, { overdueOnly: false });
+  } catch (err) {
+    console.warn("[maybeAutoSyncNb]", err);
+  }
+}
+
+export async function nbSyncStatusAction(): Promise<{ configured: boolean; entitled: boolean }> {
+  const auth = await requireUserForAction();
+  const entitled = auth.ok ? !(await requireNbSync(auth.user.id)) : false;
+  return { configured: isNbSyncConfigured(), entitled };
 }

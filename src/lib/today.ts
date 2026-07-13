@@ -4,6 +4,7 @@ import { rankTodaysContacts } from "@/lib/ai/scoring";
 import { generateMessage, type MessageChannel } from "@/lib/ai/messages";
 import { enhanceTodayRecommendation } from "@/lib/ai/today-reasoning";
 import { todayKey } from "@/lib/utils";
+import { getEntitlementsForUser, effectiveTodaysCount } from "@/lib/billing/entitlements";
 
 const CHANNEL_MAP: Record<string, MessageChannel> = {
   text: "text",
@@ -28,17 +29,22 @@ export async function buildTodaysFiveForUser(user: User, force = false): Promise
   const contacts = await prisma.contact.findMany({ where: { userId: user.id } });
   if (contacts.length === 0) return;
 
-  const ranked = rankTodaysContacts(contacts, new Date(), user.dailyContactGoal || 5);
+  const ent = await getEntitlementsForUser(user.id);
+  const dailyCount = effectiveTodaysCount(ent, user.dailyContactGoal || 5);
+
+  const ranked = rankTodaysContacts(contacts, new Date(), dailyCount);
 
   const withMessages = await Promise.all(
     ranked.map(async (r) => {
       const channel = CHANNEL_MAP[r.suggestedChannel] ?? "text";
-      const templateDraft = await generateMessage(channel, r.contact, user);
+      const forceTemplate = !ent.openAiEnabled || !ent.isActive;
+      const templateDraft = await generateMessage(channel, r.contact, user, { forceTemplate });
       const enhanced = await enhanceTodayRecommendation(
         r,
         user,
         channel,
-        templateDraft.content
+        templateDraft.content,
+        { forceTemplate }
       );
       return { r, channel, enhanced };
     })

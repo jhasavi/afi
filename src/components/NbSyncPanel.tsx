@@ -1,10 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Download, RefreshCw } from "lucide-react";
 import { syncFromNbAction } from "@/lib/actions/nb-sync";
 
-export function NbSyncPanel({ configured }: { configured: boolean }) {
+export function NbSyncPanel({
+  configured,
+  entitled = true,
+}: {
+  configured: boolean;
+  entitled?: boolean;
+}) {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -19,7 +26,7 @@ export function NbSyncPanel({ configured }: { configured: boolean }) {
         return;
       }
       setResult(
-        `Imported ${res.imported} contacts from NB Mission Control (${res.skipped} skipped as duplicates, ${res.errors} errors, ${res.total} exported).`
+        `Imported ${res.imported} contacts from NB Mission Control (${res.skipped} skipped as duplicates, ${res.linked} linked, ${res.errors} errors, ${res.total} exported).`
       );
     });
   }
@@ -33,11 +40,20 @@ export function NbSyncPanel({ configured }: { configured: boolean }) {
             Sync from Namaste Boston Mission Control
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            One-way import from NB CRM into AdvisorFlow for Today&apos;s 5 and AI drafts. Does not
-            send messages or modify NB data.
+            Import contacts into AdvisorFlow for today&apos;s list and drafts. When you{" "}
+            <strong>Log as sent</strong>, touch dates can write back to NB — we never send messages
+            for you.
           </p>
 
-          {!configured ? (
+          {!entitled ? (
+            <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Mission Control sync is included on the{" "}
+              <Link href="/pricing" className="font-medium text-brand-600 hover:underline">
+                Team plan
+              </Link>
+              . Use CSV import on Free or Solo Pro.
+            </p>
+          ) : !configured ? (
             <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               Configure <code className="rounded bg-amber-100 px-1">NB_API_BASE_URL</code> and{" "}
               <code className="rounded bg-amber-100 px-1">NB_API_KEY</code> in .env. Use the same

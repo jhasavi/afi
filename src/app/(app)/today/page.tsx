@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { buildTodaysFiveForUser } from "@/lib/today";
 import { regenerateTodaysFiveFormAction } from "@/lib/actions/recommendations";
+import { getEntitlementsForUser, effectiveTodaysCount } from "@/lib/billing/entitlements";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TodayCard, type TodayItem } from "@/components/TodayCard";
@@ -15,10 +16,11 @@ export const dynamic = "force-dynamic";
 
 export default async function TodayPage() {
   const user = await requireUser();
+  const ent = await getEntitlementsForUser(user.id);
+  const dailyCap = effectiveTodaysCount(ent, user.dailyContactGoal || 5);
 
   const contactCount = await prisma.contact.count({ where: { userId: user.id } });
 
-  // Make sure today's list exists.
   if (contactCount > 0) {
     await buildTodaysFiveForUser(user, false);
   }
@@ -53,6 +55,7 @@ export default async function TodayPage() {
   }));
 
   const done = items.filter((i) => i.status !== "pending").length;
+  const listSize = items.length || dailyCap;
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
@@ -62,8 +65,8 @@ export default async function TodayPage() {
   return (
     <div>
       <PageHeader
-        title="Today's 5"
-        subtitle={`${today} — your best relationship opportunities today`}
+        title={`Today's ${listSize}`}
+        subtitle={`${today} — who to contact, why today, what to say, what's next`}
         action={
           <form action={regenerateTodaysFiveFormAction}>
             <SubmitButton className="btn-secondary !bg-white !text-slate-700 hover:!bg-slate-50 border border-slate-300" pendingText="Refreshing…">
@@ -83,8 +86,8 @@ export default async function TodayPage() {
 
         {contactCount === 0 ? (
           <EmptyState
-            title="Add contacts to get your daily 5"
-            description="AdvisorFlow needs a few contacts to recommend who to reach out to. Import a CSV or add someone to get started."
+            title="Add contacts to unlock today's list"
+            description="AdvisorFlow needs a few contacts to recommend who to reach out to. Import a CSV or add someone — aim for your first list in under 5 minutes."
             action={
               <div className="flex gap-2">
                 <Link href="/import" className="btn-secondary">
@@ -106,7 +109,7 @@ export default async function TodayPage() {
             <div className="mb-6 flex items-center gap-2 text-sm text-slate-500">
               <Sparkles className="h-4 w-4 text-brand-500" />
               {done} of {items.length} handled today. Aim to clear all {items.length} in under 20
-              minutes.
+              minutes. Draft-first — you send, we never auto-send.
             </div>
             <div className="space-y-5">
               {items.map((item) => (

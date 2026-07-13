@@ -13,7 +13,50 @@ Demo login: `demo@advisorflow.ai` / `demo1234`
 
 ## Environment variables
 
-See [`.env.example`](../.env.example). **Required in production:**
+See project root env template and [BILLING.md](./BILLING.md). **Required in production:**
+
+| Variable | Notes |
+|----------|-------|
+| `AUTH_SECRET` | Min 32 characters; never use the dev default |
+| `DATABASE_URL` | PostgreSQL connection string (Neon recommended) |
+| `NODE_ENV` | `production` |
+| `NEXT_PUBLIC_APP_URL` | e.g. `https://app.advisorflow.ai` |
+
+**Billing (when charging):** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO_PRO`, `STRIPE_PRICE_TEAM`
+
+**NB sync (Team plan):** `NB_API_BASE_URL`, `NB_API_KEY`
+
+**Cron:** `CRON_SECRET` for weekly NB sync job
+
+## Vercel + Neon (recommended production)
+
+1. Create a [Neon](https://neon.tech) Postgres database and copy the connection string.
+
+2. Import the GitHub repo in [Vercel](https://vercel.com):
+   - Framework: Next.js
+   - Build command: `npm run build:vercel` (uses `prisma/schema.postgres.prisma`)
+   - Install command: `npm install`
+
+3. Set environment variables in Vercel (Production):
+   - `DATABASE_URL` — Neon pooled connection string
+   - `AUTH_SECRET` — `openssl rand -base64 32`
+   - `NEXT_PUBLIC_APP_URL` — your Vercel URL or custom domain
+   - Optional: OpenAI, Stripe, NB keys per tables above
+
+4. Deploy. First build runs `prisma db push` against Neon.
+
+5. Seed production (once):
+
+   ```bash
+   DATABASE_URL="postgresql://..." npx prisma db push --schema=prisma/schema.postgres.prisma
+   DATABASE_URL="postgresql://..." npx tsx prisma/seed.ts
+   ```
+
+6. Verify `GET https://your-app.vercel.app/api/health`
+
+`vercel.json` includes a weekly cron for NB sync (`/api/cron/nb-sync`) — set `CRON_SECRET` in Vercel.
+
+## Environment variables (local)
 
 | Variable | Notes |
 |----------|-------|

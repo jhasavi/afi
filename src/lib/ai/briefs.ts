@@ -250,12 +250,13 @@ function buildTemplateBrief(briefType: string, contact: Contact, user: User): Ad
 export async function generateBrief(
   contact: Contact,
   user: User,
-  briefTypeOverride?: string
+  briefTypeOverride?: string,
+  opts?: { forceTemplate?: boolean }
 ): Promise<AdvisoryBrief> {
   const briefType = briefTypeOverride || inferBriefType(contact);
   const template = buildTemplateBrief(briefType, contact, user);
 
-  if (!isOpenAIEnabled()) {
+  if (opts?.forceTemplate || !isOpenAIEnabled()) {
     return template;
   }
 

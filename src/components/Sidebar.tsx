@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { logoutAction } from "@/lib/actions/auth";
 
 const NAV = [
-  { href: "/today", label: "Today's 5", icon: Sparkles },
+  { href: "/today", label: "Today", icon: Sparkles },
   { href: "/review", label: "Weekly review", icon: CalendarRange },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },

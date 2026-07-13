@@ -13,6 +13,7 @@ import {
   requireUser,
 } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { ensureOrganizationForUser } from "@/lib/billing/entitlements";
 
 export type AuthState = { error?: string; message?: string } | undefined;
 
@@ -57,6 +58,8 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
       businessType: businessType || "Real estate agent",
     },
   });
+
+  await ensureOrganizationForUser(user.id, name, user.email);
 
   await logAudit("user.signup", { userId: user.id });
   await createSession(user.id);

@@ -4,12 +4,15 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { updateProfileAction } from "@/lib/actions/auth";
 import { AiEngineStatus } from "@/components/AiEngineStatus";
 import { IntegrationFlags } from "@/components/IntegrationFlags";
+import { BillingPanel } from "@/components/BillingPanel";
+import { getBillingStatusAction } from "@/lib/actions/billing";
 import { BUSINESS_TYPES, TONE_OPTIONS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireUser();
+  const billing = await getBillingStatusAction();
 
   return (
     <div>
@@ -95,6 +98,7 @@ export default async function SettingsPage() {
         </form>
 
         <AiEngineStatus />
+        <BillingPanel {...billing} />
         <IntegrationFlags />
       </div>
     </div>

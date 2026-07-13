@@ -26,17 +26,19 @@ type TodayReasonJson = {
 
 /**
  * Keeps deterministic scoring; optionally polishes reason, next step, and message via OpenAI.
+ * Pass forceTemplate when the user's plan does not include OpenAI (Free / inactive).
  */
 export async function enhanceTodayRecommendation(
   scored: ScoredContact,
   user: User,
   channel: MessageChannel,
-  templateMessage: string
+  templateMessage: string,
+  opts?: { forceTemplate?: boolean }
 ): Promise<TodayEnhancement> {
   const factorLine = formatScoreFactors(scored);
   const templateReason = `${scored.reason} ${factorLine}`;
 
-  if (!isOpenAIEnabled()) {
+  if (opts?.forceTemplate || !isOpenAIEnabled()) {
     return {
       reason: templateReason,
       nextStep: scored.suggestedNextStep,

@@ -12,5 +12,5 @@ test("demo login redirects to today", async ({ page }) => {
   await page.getByLabel("Password").fill("demo1234");
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page).toHaveURL(/\/today/);
-  await expect(page.getByRole("heading", { name: "Today's 5" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Today'?s \d+/ })).toBeVisible();
 });

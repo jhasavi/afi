@@ -257,11 +257,12 @@ type OpenAIMessageJson = {
 export async function generateMessage(
   channel: MessageChannel,
   contact: Contact,
-  user: User
+  user: User,
+  opts?: { forceTemplate?: boolean }
 ): Promise<MessageDraftResult> {
   const template = buildTemplate(channel, contact, user);
 
-  if (!isOpenAIEnabled()) {
+  if (opts?.forceTemplate || !isOpenAIEnabled()) {
     return template;
   }
 

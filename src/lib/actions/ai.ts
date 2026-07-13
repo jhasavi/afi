@@ -8,6 +8,8 @@ import { generateBrief, type AdvisoryBrief } from "@/lib/ai/briefs";
 import { isOpenAIEnabled } from "@/lib/ai/config";
 import { checkAiUsageAllowed, recordAiUsage } from "@/lib/ai/usage";
 import { logAudit } from "@/lib/audit";
+import { requireAiGeneration } from "@/lib/billing/entitlements";
+import { extractNbClientId, patchNbContactDates } from "@/lib/integrations/nb-writeback";
 
 export type MessageDraftMeta = {
   subject?: string;
@@ -33,7 +35,10 @@ export async function generateMessageAction(
   });
   if (!contact) return { error: "Contact not found" };
 
-  if (isOpenAIEnabled()) {
+  const entBlock = await requireAiGeneration(auth.user.id);
+  const forceTemplate = !!entBlock;
+
+  if (!forceTemplate && isOpenAIEnabled()) {
     const usage = await checkAiUsageAllowed(auth.user.id);
     if (!usage.allowed) {
       return {
@@ -43,7 +48,7 @@ export async function generateMessageAction(
   }
 
   try {
-    const draft = await generateMessage(channel, contact, auth.user);
+    const draft = await generateMessage(channel, contact, auth.user, { forceTemplate });
     if (draft.source === "openai" && !draft.fallbackUsed) {
       await recordAiUsage(auth.user.id, `message/${channel}`);
     }
@@ -92,6 +97,7 @@ export async function logMessageSentAction(
 
   const log = await prisma.messageLog.findFirst({
     where: { id: messageLogId, userId: auth.user.id },
+    include: { contact: true },
   });
   if (!log) return { error: "Draft log not found" };
 
@@ -138,6 +144,21 @@ export async function logMessageSentAction(
       entityId: log.contactId,
     });
 
+    const nbId = extractNbClientId(log.contact);
+    if (nbId) {
+      const lastContactDate = now.toISOString().slice(0, 10);
+      const nextTouchDate = followUp.toISOString().slice(0, 10);
+      const wb = await patchNbContactDates(nbId, { lastContactDate, nextTouchDate });
+      if (!wb.ok) {
+        console.warn("[NB write-back]", wb.error);
+      } else {
+        await prisma.contact.update({
+          where: { id: log.contactId },
+          data: { nbClientId: nbId },
+        });
+      }
+    }
+
     revalidatePath("/dashboard");
     revalidatePath(`/contacts/${log.contactId}`);
     revalidatePath("/today");
@@ -162,7 +183,10 @@ export async function generateBriefAction(
   });
   if (!contact) return { error: "Contact not found" };
 
-  if (isOpenAIEnabled()) {
+  const entBlock = await requireAiGeneration(auth.user.id);
+  const forceTemplate = !!entBlock;
+
+  if (!forceTemplate && isOpenAIEnabled()) {
     const usage = await checkAiUsageAllowed(auth.user.id);
     if (!usage.allowed) {
       return {
@@ -172,7 +196,7 @@ export async function generateBriefAction(
   }
 
   try {
-    const brief = await generateBrief(contact, auth.user, briefType);
+    const brief = await generateBrief(contact, auth.user, briefType, { forceTemplate });
     if (brief.source === "openai" && !brief.fallbackUsed) {
       await recordAiUsage(auth.user.id, `brief/${brief.briefType}`);
     }

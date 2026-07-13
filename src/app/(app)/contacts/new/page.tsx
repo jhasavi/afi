@@ -5,8 +5,13 @@ import { PageHeader } from "@/components/ui";
 import { ContactForm } from "@/components/ContactForm";
 import { createContactAction } from "@/lib/actions/contacts";
 
-export default async function NewContactPage() {
+export default async function NewContactPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
   await requireUser();
+  const error = searchParams?.error;
 
   return (
     <div>
@@ -16,6 +21,14 @@ export default async function NewContactPage() {
           <ChevronLeft className="h-4 w-4" />
           Back to contacts
         </Link>
+        {error && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {error}{" "}
+            <Link href="/pricing" className="font-medium text-brand-700 underline">
+              View pricing
+            </Link>
+          </div>
+        )}
         <ContactForm
           action={createContactAction}
           submitLabel="Create contact"

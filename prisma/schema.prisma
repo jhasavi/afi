@@ -30,6 +30,7 @@ model User {
   dailyContactGoal      Int     @default(5)
   defaultFollowUpDays   Int     @default(14)
   defaultDisclaimer     String?
+  lastNbSyncAt          DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -41,6 +42,48 @@ model User {
   auditLogs       AuditLog[]
   passwordResets  PasswordResetToken[]
   aiUsageLogs     AiUsageLog[]
+  orgMemberships  OrganizationMember[]
+}
+
+model Organization {
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  stripeCustomerId   String?  @unique
+  stripeSubscriptionId String?
+  plan               String   @default("free") // free | solo_pro | team | brokerage
+  subscriptionStatus String   @default("active") // trialing | active | past_due | canceled
+  trialEndsAt        DateTime?
+  seatsIncluded      Int      @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  members            OrganizationMember[]
+  subscriptionEvents SubscriptionEvent[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("advisor") // admin | advisor
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model SubscriptionEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type           String
+  payload        String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
 }
 
 model Contact {
@@ -63,6 +106,7 @@ model Contact {
   tags                 String? // JSON array of strings
   pipelineStage        String  @default("Long-Term Nurture")
   estimatedValue       Float?
+  nbClientId           String? // Namaste Boston MC client id for write-back
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -14,7 +14,7 @@ export async function regenerateTodaysFive(): Promise<{ ok: true } | { error: st
     return { ok: true };
   } catch (err) {
     console.error("[regenerateTodaysFive]", err);
-    return { error: "Could not refresh Today's 5. Please try again." };
+    return { error: "Could not refresh today's list. Please try again." };
   }
 }
 

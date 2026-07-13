@@ -17,6 +17,10 @@ async function main() {
   // Reset demo user for a clean seed.
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
+    const memberships = await prisma.organizationMember.findMany({ where: { userId: existing.id } });
+    for (const m of memberships) {
+      await prisma.organization.delete({ where: { id: m.organizationId } }).catch(() => {});
+    }
     await prisma.user.delete({ where: { email } });
   }
 
@@ -35,6 +39,19 @@ async function main() {
       dailyContactGoal: 5,
       defaultFollowUpDays: 14,
     },
+  });
+
+  const org = await prisma.organization.create({
+    data: {
+      name: "Avery Group Realty",
+      slug: "avery-group",
+      plan: "team",
+      subscriptionStatus: "active",
+      seatsIncluded: 5,
+    },
+  });
+  await prisma.organizationMember.create({
+    data: { organizationId: org.id, userId: user.id, role: "admin" },
   });
 
   const contacts = [

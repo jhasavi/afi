@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "build:vercel": "prisma generate --schema=prisma/schema.postgres.prisma && prisma db push --schema=prisma/schema.postgres.prisma --skip-generate && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
@@ -28,6 +29,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "server-only": "^0.0.1",
+    "stripe": "^16.12.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
