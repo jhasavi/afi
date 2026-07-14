@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui";
 import { CsvImporter } from "@/components/CsvImporter";
 import { NbSyncPanel } from "@/components/NbSyncPanel";
 import { HubSpotPanel } from "@/components/HubSpotPanel";
+import { CrmImportGuide } from "@/components/CrmImportGuide";
 import { isNbSyncConfigured } from "@/lib/integrations/nb";
 import { isHubSpotConfigured } from "@/lib/integrations/hubspot";
 import { getEntitlementsForUser } from "@/lib/billing/entitlements";
@@ -36,6 +37,7 @@ export default async function ImportPage() {
         </div>
 
         <NbSyncPanel configured={nbConfigured} entitled={entitlements.nbSyncEnabled && entitlements.isActive} />
+        <CrmImportGuide />
         <CsvImporter />
         <HubSpotPanel apiConfigured={hubspotConfigured} />
       </div>

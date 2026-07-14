@@ -95,7 +95,7 @@ export function MessageGenerator({
     setError(null);
     startTransition(async () => {
       try {
-        const res = await sendDraftEmailAction(messageLogId, subject);
+        const res = await sendDraftEmailAction(messageLogId, subject, message);
         if ("error" in res) {
           setError(res.error);
           return;

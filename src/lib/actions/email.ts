@@ -9,7 +9,8 @@ import { isNbEmailSendConfigured } from "@/lib/integrations/nb-send-email";
 
 export async function sendDraftEmailAction(
   messageLogId: string,
-  subject: string
+  subject: string,
+  messageBody?: string
 ): Promise<{ ok: boolean; sentTo?: string } | { error: string }> {
   const auth = await requireUserForAction();
   if (!auth.ok) return { error: auth.error };
@@ -46,11 +47,24 @@ export async function sendDraftEmailAction(
   const nextTouchDate = followUp.toISOString().slice(0, 10);
 
   const nbId = extractNbClientId(contact);
+  const body = (messageBody?.trim() || log.content).trim();
+  if (!body) {
+    return { error: "Message body is empty." };
+  }
+
+  // Persist edits made in the textarea before send
+  if (body !== log.content) {
+    await prisma.messageLog.update({
+      where: { id: messageLogId },
+      data: { content: body },
+    });
+  }
+
   const send = await sendEmailViaNb({
     nbClientId: nbId,
     toEmail,
     subject: trimmedSubject,
-    message: log.content,
+    message: body,
     nextTouchDate,
   });
 
