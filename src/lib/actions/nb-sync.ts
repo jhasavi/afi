@@ -18,8 +18,27 @@ export type NbSyncResult = {
   linked: number;
 };
 
+type ContactIndex = {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  name: string;
+  nbClientId: string | null;
+  lastContactedAt: Date | null;
+  nextFollowUpAt: Date | null;
+  status: string;
+  town: string | null;
+  opportunityType: string;
+};
+
 function normalizePhone(p?: string): string {
   return (p || "").replace(/\D/g, "");
+}
+
+function parseOptionalDate(value?: string | null): Date | null {
+  if (!value || !String(value).trim()) return null;
+  const d = new Date(String(value).trim());
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 const SYNC_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -58,19 +77,21 @@ async function runNbSync(
   });
 
   const byNbId = new Map(
-    existing.filter((c) => c.nbClientId).map((c) => [c.nbClientId!, c])
+    existing.filter((c) => c.nbClientId).map((c) => [c.nbClientId!, c as ContactIndex])
   );
   const existingEmails = new Map(
     existing
       .filter((c) => c.email)
-      .map((c) => [c.email!.toLowerCase(), c])
+      .map((c) => [c.email!.toLowerCase(), c as ContactIndex])
   );
   const existingPhones = new Map(
     existing
-      .map((c) => [normalizePhone(c.phone || ""), c] as const)
+      .map((c) => [normalizePhone(c.phone || ""), c as ContactIndex] as const)
       .filter(([p]) => p)
   );
-  const existingNames = new Map(existing.map((c) => [c.name.trim().toLowerCase(), c]));
+  const existingNames = new Map(
+    existing.map((c) => [c.name.trim().toLowerCase(), c as ContactIndex])
+  );
 
   const result: NbSyncResult = {
     imported: 0,
@@ -100,35 +121,52 @@ async function runNbSync(
       (!email && !normPhone && existingNames.get(lowerName));
 
     if (match) {
-      const status = row.status || match.status || "New";
-      const data: {
-        nbClientId?: string | null;
-        lastContactedAt?: Date | null;
-        nextFollowUpAt?: Date | null;
-        status?: string;
-        town?: string | null;
-        opportunityType?: string;
-        pipelineStage?: string;
-      } = {};
+      try {
+        const status = row.status || match.status || "New";
+        const data: {
+          nbClientId?: string | null;
+          lastContactedAt?: Date | null;
+          nextFollowUpAt?: Date | null;
+          status?: string;
+          town?: string | null;
+          opportunityType?: string;
+          pipelineStage?: string;
+        } = {
+          lastContactedAt: parseOptionalDate(row.lastContactedAt),
+          nextFollowUpAt: parseOptionalDate(row.nextFollowUpAt),
+        };
 
-      if (row.nbClientId && !match.nbClientId) {
-        data.nbClientId = row.nbClientId;
-        result.linked += 1;
+        if (row.nbClientId && !match.nbClientId) {
+          data.nbClientId = row.nbClientId;
+          result.linked += 1;
+        }
+        if (row.status) {
+          data.status = status;
+          data.pipelineStage = statusToStage(status);
+        }
+        if (row.town !== undefined) data.town = row.town || null;
+        if (row.opportunityType) data.opportunityType = row.opportunityType;
+
+        await prisma.contact.update({ where: { id: match.id }, data });
+
+        const refreshed: ContactIndex = {
+          ...match,
+          nbClientId: data.nbClientId ?? match.nbClientId,
+          lastContactedAt: data.lastContactedAt ?? match.lastContactedAt,
+          nextFollowUpAt: data.nextFollowUpAt ?? match.nextFollowUpAt,
+          status: data.status ?? match.status,
+          town: data.town !== undefined ? data.town : match.town,
+          opportunityType: data.opportunityType ?? match.opportunityType,
+        };
+        if (refreshed.nbClientId) byNbId.set(refreshed.nbClientId, refreshed);
+        if (email) existingEmails.set(email, refreshed);
+        if (normPhone) existingPhones.set(normPhone, refreshed);
+        existingNames.set(lowerName, refreshed);
+        result.refreshed += 1;
+      } catch (err) {
+        console.warn("[nb-sync] refresh failed", match.id, err);
+        result.errors += 1;
       }
-
-      // MC is source of truth for touch dates and light CRM fields on refresh
-      data.lastContactedAt = row.lastContactedAt ? new Date(row.lastContactedAt) : null;
-      data.nextFollowUpAt = row.nextFollowUpAt ? new Date(row.nextFollowUpAt) : null;
-      if (row.status) {
-        data.status = status;
-        data.pipelineStage = statusToStage(status);
-      }
-      if (row.town !== undefined) data.town = row.town || null;
-      if (row.opportunityType) data.opportunityType = row.opportunityType;
-
-      await prisma.contact.update({ where: { id: match.id }, data });
-      if (row.nbClientId) byNbId.set(row.nbClientId, { ...match, nbClientId: row.nbClientId });
-      result.refreshed += 1;
       continue;
     }
 
@@ -144,7 +182,7 @@ async function runNbSync(
       : ["nb-import"];
 
     try {
-      await prisma.contact.create({
+      const createdRow = await prisma.contact.create({
         data: {
           userId,
           name,
@@ -158,31 +196,32 @@ async function runNbSync(
           source: row.source || "NB Mission Control",
           tags: stringifyTags(tags),
           pipelineStage: statusToStage(status),
-          lastContactedAt: row.lastContactedAt ? new Date(row.lastContactedAt) : null,
-          nextFollowUpAt: row.nextFollowUpAt ? new Date(row.nextFollowUpAt) : null,
+          lastContactedAt: parseOptionalDate(row.lastContactedAt),
+          nextFollowUpAt: parseOptionalDate(row.nextFollowUpAt),
           relationshipStrength: 3,
           nbClientId: row.nbClientId || null,
         },
       });
 
-      const created = {
-        id: "new",
+      const created: ContactIndex = {
+        id: createdRow.id,
         email,
         phone,
         name,
-        nbClientId: row.nbClientId || null,
-        lastContactedAt: null,
-        nextFollowUpAt: null,
+        nbClientId: createdRow.nbClientId,
+        lastContactedAt: createdRow.lastContactedAt,
+        nextFollowUpAt: createdRow.nextFollowUpAt,
         status,
-        town: row.town || null,
-        opportunityType: row.opportunityType || "General relationship nurture",
+        town: createdRow.town,
+        opportunityType: createdRow.opportunityType,
       };
       if (email) existingEmails.set(email, created);
       if (normPhone) existingPhones.set(normPhone, created);
       existingNames.set(lowerName, created);
-      if (row.nbClientId) byNbId.set(row.nbClientId, created);
+      if (created.nbClientId) byNbId.set(created.nbClientId, created);
       result.imported += 1;
-    } catch {
+    } catch (err) {
+      console.warn("[nb-sync] create failed", name, err);
       result.errors += 1;
     }
   }
@@ -214,7 +253,12 @@ export async function runNbSyncForUser(
     const gate = await requireNbSync(userId);
     if (gate) return { error: gate.error };
   }
-  return runNbSync(userId, opts);
+  try {
+    return await runNbSync(userId, opts);
+  } catch (err) {
+    console.error("[runNbSyncForUser]", err);
+    return { error: "NB sync failed unexpectedly. Try again in a moment." };
+  }
 }
 
 export async function syncFromNbAction(opts?: {
@@ -226,26 +270,31 @@ export async function syncFromNbAction(opts?: {
   const gate = await requireNbSync(auth.user.id);
   if (gate) return { error: gate.error };
 
-  return runNbSync(auth.user.id, opts);
+  try {
+    return await runNbSync(auth.user.id, opts);
+  } catch (err) {
+    console.error("[syncFromNbAction]", err);
+    return { error: "NB sync failed unexpectedly. Your existing contacts are safe — try again." };
+  }
 }
 
 /** Weekly auto-sync on login when Team plan and NB configured. */
 export async function maybeAutoSyncNb(userId: string): Promise<void> {
-  const gate = await requireNbSync(userId);
-  if (gate) return;
-  if (!isNbSyncConfigured()) return;
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { lastNbSyncAt: true },
-  });
-  if (!user) return;
-
-  const stale =
-    !user.lastNbSyncAt || Date.now() - user.lastNbSyncAt.getTime() > SYNC_INTERVAL_MS;
-  if (!stale) return;
-
   try {
+    const gate = await requireNbSync(userId);
+    if (gate) return;
+    if (!isNbSyncConfigured()) return;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { lastNbSyncAt: true },
+    });
+    if (!user) return;
+
+    const stale =
+      !user.lastNbSyncAt || Date.now() - user.lastNbSyncAt.getTime() > SYNC_INTERVAL_MS;
+    if (!stale) return;
+
     await runNbSync(userId, { overdueOnly: false });
   } catch (err) {
     console.warn("[maybeAutoSyncNb]", err);

@@ -133,8 +133,15 @@ export async function importContactsAction(rows: ImportRow[]): Promise<ImportRes
   }
 
   if (toCreate.length > 0) {
-    await prisma.contact.createMany({ data: toCreate });
-    result.imported = toCreate.length;
+    try {
+      await prisma.contact.createMany({ data: toCreate });
+      result.imported = toCreate.length;
+    } catch (err) {
+      console.error("[importContactsAction]", err);
+      return {
+        error: "Could not save imported contacts. Check your CSV mapping and try a smaller batch.",
+      };
+    }
   }
 
   revalidatePath("/contacts");

@@ -4,7 +4,8 @@ import { maybeAutoSyncNb } from "@/lib/actions/nb-sync";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  await maybeAutoSyncNb(user.id);
+  // Do not block navigation on weekly NB sync — failures must never crash pages.
+  void maybeAutoSyncNb(user.id);
 
   return (
     <div className="flex h-screen overflow-hidden">
