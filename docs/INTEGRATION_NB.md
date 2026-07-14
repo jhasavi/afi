@@ -23,7 +23,7 @@ NB website forms → captureLead → clients table (MC CRM)
               PATCH /api/plugin/advisorflow/contacts/[id]  (touch dates)
 ```
 
-Requires **Team plan** in AdvisorFlow for NB sync (see [BILLING.md](./BILLING.md)).
+Requires **Team plan** in AdvisorFlow for NB sync and **Send via NB mail** (see [BILLING.md](./BILLING.md)).
 
 ## Setup
 
@@ -103,11 +103,14 @@ Content-Type: application/json
   "nbClientId": "uuid-from-mc",
   "subject": "Following up",
   "message": "Plain text body",
-  "nextTouchDate": "2026-06-18"
+  "nextTouchDate": "2026-06-18",
+  "fromName": "Advisor display name",
+  "replyTo": "advisor@broker.com",
+  "replyToName": "Advisor display name"
 }
 ```
 
-Uses ZeptoMail on the NB server (same as MC composer). Not auto-send.
+Uses ZeptoMail on the NB server (same verified From domain as MC). Per-advisor **display name** and **reply-to** come from AdvisorFlow Settings → Email sending (Team). Not auto-send.
 
 ## Security
 

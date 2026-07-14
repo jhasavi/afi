@@ -31,6 +31,8 @@ model User {
   defaultFollowUpDays   Int     @default(14)
   defaultDisclaimer     String?
   lastNbSyncAt          DateTime?
+  outboundSenderName    String? // Team email send: From display name (verified domain on NB)
+  outboundReplyTo       String? // Team email send: Reply-To address (defaults to login email)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

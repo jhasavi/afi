@@ -1,8 +1,30 @@
 import { extractNbClientId } from "@/lib/integrations/nb-writeback";
 import { isNbSyncConfigured } from "@/lib/integrations/nb";
+import type { UserEntitlements } from "@/lib/billing/plans";
 
 export function isNbEmailSendConfigured(): boolean {
   return isNbSyncConfigured();
+}
+
+export function isNbEmailSendAvailable(ent: Pick<UserEntitlements, "nbSyncEnabled" | "isActive">): boolean {
+  return isNbEmailSendConfigured() && ent.nbSyncEnabled && ent.isActive;
+}
+
+export type OutboundSender = {
+  fromName: string;
+  replyTo: string;
+  replyToName: string;
+};
+
+export function resolveOutboundSender(user: {
+  name: string;
+  email: string;
+  outboundSenderName?: string | null;
+  outboundReplyTo?: string | null;
+}): OutboundSender {
+  const fromName = user.outboundSenderName?.trim() || user.name.trim();
+  const replyTo = user.outboundReplyTo?.trim() || user.email.trim();
+  return { fromName, replyTo, replyToName: fromName };
 }
 
 export type NbSendEmailResult = {
@@ -20,6 +42,9 @@ export async function sendEmailViaNb(opts: {
   subject: string;
   message: string;
   nextTouchDate?: string;
+  fromName?: string;
+  replyTo?: string;
+  replyToName?: string;
 }): Promise<NbSendEmailResult> {
   const baseUrl = process.env.NB_API_BASE_URL?.replace(/\/$/, "");
   const apiKey = process.env.NB_API_KEY || process.env.ADVISORFLOW_EXPORT_API_KEY;
@@ -45,6 +70,9 @@ export async function sendEmailViaNb(opts: {
         subject: opts.subject.trim(),
         message: opts.message.trim(),
         nextTouchDate: opts.nextTouchDate,
+        fromName: opts.fromName?.trim() || undefined,
+        replyTo: opts.replyTo?.trim() || undefined,
+        replyToName: opts.replyToName?.trim() || undefined,
       }),
     });
 

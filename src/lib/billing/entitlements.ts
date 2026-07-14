@@ -136,3 +136,14 @@ export async function requireNbSync(userId: string): Promise<EntitlementError | 
   }
   return null;
 }
+
+/** Same Team entitlement as NB sync — send uses Mission Control ZeptoMail. */
+export async function requireNbEmailSend(userId: string): Promise<EntitlementError | null> {
+  const blocked = await requireNbSync(userId);
+  if (blocked) {
+    return {
+      error: `Send via NB mail requires Team plan. Upgrade at /pricing or copy the draft and send from your own email app.`,
+    };
+  }
+  return null;
+}

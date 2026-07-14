@@ -6,6 +6,8 @@ import { AiEngineStatus } from "@/components/AiEngineStatus";
 import { IntegrationFlags } from "@/components/IntegrationFlags";
 import { BillingPanel } from "@/components/BillingPanel";
 import { getBillingStatusAction } from "@/lib/actions/billing";
+import { getEntitlementsForUser } from "@/lib/billing/entitlements";
+import { isNbEmailSendAvailable } from "@/lib/integrations/nb-send-email";
 import { BUSINESS_TYPES, TONE_OPTIONS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +15,8 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const user = await requireUser();
   const billing = await getBillingStatusAction();
+  const entitlements = await getEntitlementsForUser(user.id);
+  const emailSendAvailable = isNbEmailSendAvailable(entitlements);
 
   return (
     <div>
@@ -91,6 +95,47 @@ export default async function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {emailSendAvailable && (
+            <div className="card p-6">
+              <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">
+                Email sending (Team)
+              </h2>
+              <p className="mb-4 text-sm text-slate-600">
+                <strong>Send via NB mail</strong> delivers from your brokerage&apos;s verified domain.
+                Recipients see your display name; replies go to the address below.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="label" htmlFor="outboundSenderName">
+                    Sender display name
+                  </label>
+                  <input
+                    id="outboundSenderName"
+                    name="outboundSenderName"
+                    className="input"
+                    placeholder={user.name}
+                    defaultValue={user.outboundSenderName ?? ""}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Shown in the From line. Defaults to your profile name.</p>
+                </div>
+                <div>
+                  <label className="label" htmlFor="outboundReplyTo">
+                    Reply-to email
+                  </label>
+                  <input
+                    id="outboundReplyTo"
+                    name="outboundReplyTo"
+                    type="email"
+                    className="input"
+                    placeholder={user.email}
+                    defaultValue={user.outboundReplyTo ?? ""}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Defaults to {user.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end">
             <SubmitButton pendingText="Saving…">Save settings</SubmitButton>

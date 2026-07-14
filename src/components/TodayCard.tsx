@@ -33,9 +33,11 @@ export type TodayItem = {
 export function TodayCard({
   item,
   emailSendEnabled = false,
+  senderPreview,
 }: {
   item: TodayItem;
   emailSendEnabled?: boolean;
+  senderPreview?: string;
 }) {
   const [status, setStatus] = useState(item.status);
   const [pending, startTransition] = useTransition();
@@ -117,6 +119,7 @@ export function TodayCard({
               contactName={item.contact.name}
               contactEmail={item.contact.email}
               emailSendEnabled={emailSendEnabled}
+              senderPreview={senderPreview}
               initialChannel={(item.channel as MessageChannel) ?? "text"}
               initialMessage={item.suggestedMessage}
             />

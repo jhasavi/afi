@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { requireUserForAction } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logMessageSentAction } from "@/lib/actions/ai";
-import { sendEmailViaNb, extractNbClientId } from "@/lib/integrations/nb-send-email";
+import { sendEmailViaNb, extractNbClientId, resolveOutboundSender } from "@/lib/integrations/nb-send-email";
 import { isNbEmailSendConfigured } from "@/lib/integrations/nb-send-email";
+import { requireNbEmailSend } from "@/lib/billing/entitlements";
 
 export async function sendDraftEmailAction(
   messageLogId: string,
@@ -21,6 +22,9 @@ export async function sendDraftEmailAction(
         "Email send is not configured. Set NB_API_BASE_URL and NB_API_KEY (NB uses ZeptoMail on the server).",
     };
   }
+
+  const planBlock = await requireNbEmailSend(auth.user.id);
+  if (planBlock) return planBlock;
 
   const trimmedSubject = subject.trim();
   if (!trimmedSubject) {
@@ -60,12 +64,17 @@ export async function sendDraftEmailAction(
     });
   }
 
+  const sender = resolveOutboundSender(auth.user);
+
   const send = await sendEmailViaNb({
     nbClientId: nbId,
     toEmail,
     subject: trimmedSubject,
     message: body,
     nextTouchDate,
+    fromName: sender.fromName,
+    replyTo: sender.replyTo,
+    replyToName: sender.replyToName,
   });
 
   if (!send.ok) {

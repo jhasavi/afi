@@ -17,6 +17,7 @@ export function MessageGenerator({
   contactName,
   contactEmail,
   emailSendEnabled = false,
+  senderPreview,
   initialChannel = "text",
   initialMessage = "",
 }: {
@@ -24,6 +25,7 @@ export function MessageGenerator({
   contactName?: string;
   contactEmail?: string | null;
   emailSendEnabled?: boolean;
+  senderPreview?: string;
   initialChannel?: MessageChannel;
   initialMessage?: string;
 }) {
@@ -168,7 +170,10 @@ export function MessageGenerator({
                 className="input"
                 maxLength={200}
               />
-              <p className="mt-1 text-xs text-slate-500">To: {contactEmail}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                To: {contactEmail}
+                {senderPreview ? ` · From: ${senderPreview}` : ""}
+              </p>
             </div>
           )}
           <textarea
@@ -202,7 +207,7 @@ export function MessageGenerator({
             </button>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            <strong>Send via NB mail</strong> uses Mission Control&apos;s ZeptoMail and logs the touch
+            <strong>Send via NB mail</strong> uses Mission Control&apos;s ZeptoMail (Team plan) and logs the touch
             in MC + AdvisorFlow. <strong>Log as sent</strong> is for when you sent from your own
             email app or phone.
           </p>

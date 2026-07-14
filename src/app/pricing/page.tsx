@@ -11,7 +11,7 @@ const FEATURE_ROWS: { label: string; display: (t: PlanEntitlements) => string }[
   { label: "OpenAI drafts & briefs", display: (t) => (t.openAiEnabled ? "Yes" : "Template only") },
   { label: "AI generations / month", display: (t) => (t.aiGenerationsPerMonth ? String(t.aiGenerationsPerMonth) : "—") },
   { label: "Contact limit", display: (t) => t.maxContacts.toLocaleString() },
-  { label: "NB Mission Control sync", display: (t) => (t.nbSyncEnabled ? "Import + write-back" : "—") },
+  { label: "NB Mission Control sync", display: (t) => (t.nbSyncEnabled ? "Import + write-back + send" : "—") },
 ];
 
 export default async function PricingPage() {

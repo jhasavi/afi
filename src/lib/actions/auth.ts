@@ -103,6 +103,10 @@ export async function updateProfileAction(formData: FormData): Promise<void> {
 
   const dailyGoal = parseInt(String(formData.get("dailyContactGoal") || "5"), 10);
   const followUpDays = parseInt(String(formData.get("defaultFollowUpDays") || "14"), 10);
+  const outboundReplyTo = (formData.get("outboundReplyTo") as string)?.trim() || null;
+  if (outboundReplyTo && !z.string().email().safeParse(outboundReplyTo).success) {
+    return;
+  }
 
   await prisma.user.update({
     where: { id: user.id },
@@ -118,6 +122,8 @@ export async function updateProfileAction(formData: FormData): Promise<void> {
       dailyContactGoal: isNaN(dailyGoal) ? 5 : Math.max(1, Math.min(20, dailyGoal)),
       defaultFollowUpDays: isNaN(followUpDays) ? 14 : Math.max(1, Math.min(365, followUpDays)),
       defaultDisclaimer: (formData.get("defaultDisclaimer") as string) || null,
+      outboundSenderName: (formData.get("outboundSenderName") as string)?.trim() || null,
+      outboundReplyTo,
     },
   });
 
