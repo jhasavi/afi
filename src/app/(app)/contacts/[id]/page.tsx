@@ -25,6 +25,7 @@ import { DeleteContactButton } from "@/components/DeleteContactButton";
 import { logInteractionAction } from "@/lib/actions/interactions";
 import { formatDate, parseTags, relativeDate } from "@/lib/utils";
 import { SuccessBanner } from "@/components/SuccessBanner";
+import { isNbEmailSendConfigured } from "@/lib/integrations/nb-send-email";
 
 export default async function ContactDetailPage({
   params,
@@ -43,6 +44,7 @@ export default async function ContactDetailPage({
   const tags = parseTags(contact.tags);
   const logAction = logInteractionAction.bind(null, contact.id);
   const overdue = contact.nextFollowUpAt && contact.nextFollowUpAt < new Date();
+  const emailSendEnabled = isNbEmailSendConfigured();
 
   return (
     <div>
@@ -86,7 +88,12 @@ export default async function ContactDetailPage({
               <p className="mb-4 text-sm text-slate-500">
                 Warm, advisor-like drafts — copy and send from your own phone or email.
               </p>
-              <MessageGenerator contactId={contact.id} />
+              <MessageGenerator
+                contactId={contact.id}
+                contactName={contact.name}
+                contactEmail={contact.email}
+                emailSendEnabled={emailSendEnabled}
+              />
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <ResponseButtons contactId={contact.id} />
               </div>

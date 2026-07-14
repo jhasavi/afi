@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ClipboardList, Sparkles } from "lucide-react";
+import { ClipboardList, Mail, Sparkles } from "lucide-react";
 import { generateMessageAction, logMessageSentAction } from "@/lib/actions/ai";
+import { sendDraftEmailAction } from "@/lib/actions/email";
 import type { MessageChannel } from "@/lib/ai/messages";
 import { MESSAGE_CHANNELS } from "@/lib/constants";
 import { CopyButton } from "@/components/CopyButton";
@@ -13,17 +14,27 @@ const SERVER_ERROR =
 
 export function MessageGenerator({
   contactId,
+  contactName,
+  contactEmail,
+  emailSendEnabled = false,
   initialChannel = "text",
   initialMessage = "",
 }: {
   contactId: string;
+  contactName?: string;
+  contactEmail?: string | null;
+  emailSendEnabled?: boolean;
   initialChannel?: MessageChannel;
   initialMessage?: string;
 }) {
   const [channel, setChannel] = useState<MessageChannel>(initialChannel);
   const [message, setMessage] = useState(initialMessage);
+  const [subject, setSubject] = useState(
+    contactName ? `Following up — ${contactName}` : "Following up"
+  );
   const [messageLogId, setMessageLogId] = useState<string | null>(null);
   const [logged, setLogged] = useState(false);
+  const [sentViaNb, setSentViaNb] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fallbackUsed, setFallbackUsed] = useState(false);
   const [meta, setMeta] = useState<{
@@ -33,9 +44,13 @@ export function MessageGenerator({
   } | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const canSendEmail =
+    emailSendEnabled && channel === "email" && !!contactEmail?.trim() && !!message && !!messageLogId;
+
   function generate() {
     setError(null);
     setLogged(false);
+    setSentViaNb(false);
     setFallbackUsed(false);
     setMeta(null);
     startTransition(async () => {
@@ -75,11 +90,30 @@ export function MessageGenerator({
     });
   }
 
+  function sendEmail() {
+    if (!messageLogId || !canSendEmail) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const res = await sendDraftEmailAction(messageLogId, subject);
+        if ("error" in res) {
+          setError(res.error);
+          return;
+        }
+        setSentViaNb(true);
+        setLogged(true);
+      } catch {
+        setError(SERVER_ERROR);
+      }
+    });
+  }
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-slate-500">
-        Draft only — AdvisorFlow does not send texts or emails. Copy the message and send it from
-        your own phone or email app.
+        {emailSendEnabled && channel === "email" && contactEmail
+          ? "Draft first — copy and send yourself, or use Send via NB mail (ZeptoMail, same as Mission Control). Nothing sends automatically."
+          : "Draft only — AdvisorFlow does not send texts or emails unless you click Send via NB mail (Team + email channel). Otherwise copy and send from your own app."}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <select
@@ -122,6 +156,21 @@ export function MessageGenerator({
 
       {message && (
         <div>
+          {channel === "email" && emailSendEnabled && contactEmail && (
+            <div className="mb-3">
+              <label className="label" htmlFor={`subject-${contactId}`}>
+                Email subject
+              </label>
+              <input
+                id={`subject-${contactId}`}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="input"
+                maxLength={200}
+              />
+              <p className="mt-1 text-xs text-slate-500">To: {contactEmail}</p>
+            </div>
+          )}
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -131,10 +180,21 @@ export function MessageGenerator({
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <CopyButton text={message} label="Copy draft" />
+            {canSendEmail && (
+              <button
+                type="button"
+                onClick={sendEmail}
+                disabled={pending || sentViaNb || logged}
+                className="btn-primary"
+              >
+                <Mail className="h-4 w-4" />
+                {sentViaNb ? "Email sent" : pending ? "Sending…" : "Send via NB mail"}
+              </button>
+            )}
             <button
               type="button"
               onClick={logSent}
-              disabled={!messageLogId || logged || pending}
+              disabled={!messageLogId || logged || sentViaNb || pending}
               className="btn-secondary"
             >
               <ClipboardList className="h-4 w-4" />
@@ -142,8 +202,9 @@ export function MessageGenerator({
             </button>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            <strong>Log as sent</strong> does not send an email or text. It records that you sent
-            this draft from your own email or phone, and updates follow-up tracking.
+            <strong>Send via NB mail</strong> uses Mission Control&apos;s ZeptoMail and logs the touch
+            in MC + AdvisorFlow. <strong>Log as sent</strong> is for when you sent from your own
+            email app or phone.
           </p>
         </div>
       )}

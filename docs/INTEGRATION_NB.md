@@ -90,11 +90,30 @@ Content-Type: application/json
 }
 ```
 
+## Optional: send email via MC ZeptoMail
+
+When the advisor explicitly clicks **Send via NB mail** on an email draft:
+
+```
+POST https://your-nb-domain.com/api/plugin/advisorflow/send-email
+Authorization: Bearer your-long-random-secret-here
+Content-Type: application/json
+
+{
+  "nbClientId": "uuid-from-mc",
+  "subject": "Following up",
+  "message": "Plain text body",
+  "nextTouchDate": "2026-06-18"
+}
+```
+
+Uses ZeptoMail on the NB server (same as MC composer). Not auto-send.
+
 ## Security
 
 - Export and write-back use service role on NB — never expose the API key to browsers
 - AdvisorFlow stores imports per user account
-- No auto-send email/SMS from either system
+- No auto-send email/SMS from either system (except explicit **Send via NB mail** click on email drafts)
 
 ## GitHub
 

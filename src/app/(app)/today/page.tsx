@@ -11,6 +11,7 @@ import { TodayCard, type TodayItem } from "@/components/TodayCard";
 import { AiEngineStatus } from "@/components/AiEngineStatus";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { todayKey } from "@/lib/utils";
+import { isNbEmailSendConfigured } from "@/lib/integrations/nb-send-email";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function TodayPage() {
   const user = await requireUser();
   const ent = await getEntitlementsForUser(user.id);
   const dailyCap = effectiveTodaysCount(ent, user.dailyContactGoal || 5);
+  const emailSendEnabled = isNbEmailSendConfigured();
 
   const contactCount = await prisma.contact.count({ where: { userId: user.id } });
 
@@ -33,6 +35,7 @@ export default async function TodayPage() {
         select: {
           id: true,
           name: true,
+          email: true,
           category: true,
           town: true,
           opportunityType: true,
@@ -113,7 +116,7 @@ export default async function TodayPage() {
             </div>
             <div className="space-y-5">
               {items.map((item) => (
-                <TodayCard key={item.id} item={item} />
+                <TodayCard key={item.id} item={item} emailSendEnabled={emailSendEnabled} />
               ))}
             </div>
           </>

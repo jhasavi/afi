@@ -23,13 +23,20 @@ export type TodayItem = {
   contact: {
     id: string;
     name: string;
+    email: string | null;
     category: string;
     town: string | null;
     opportunityType: string;
   };
 };
 
-export function TodayCard({ item }: { item: TodayItem }) {
+export function TodayCard({
+  item,
+  emailSendEnabled = false,
+}: {
+  item: TodayItem;
+  emailSendEnabled?: boolean;
+}) {
   const [status, setStatus] = useState(item.status);
   const [pending, startTransition] = useTransition();
 
@@ -107,6 +114,9 @@ export function TodayCard({ item }: { item: TodayItem }) {
           <div className="mt-4">
             <MessageGenerator
               contactId={item.contact.id}
+              contactName={item.contact.name}
+              contactEmail={item.contact.email}
+              emailSendEnabled={emailSendEnabled}
               initialChannel={(item.channel as MessageChannel) ?? "text"}
               initialMessage={item.suggestedMessage}
             />
