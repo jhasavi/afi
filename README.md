@@ -6,6 +6,8 @@ An AI follow-up and advisory copilot for real estate and mortgage professionals.
 
 See [docs/VISION.md](docs/VISION.md) for product vision and [docs/ROADMAP.md](docs/ROADMAP.md) for the roadmap.
 
+For day-to-day brokerage use, see [docs/HOW_TO_RUN_YOUR_BROKERAGE_WITH_ADVISORFLOW.md](docs/HOW_TO_RUN_YOUR_BROKERAGE_WITH_ADVISORFLOW.md). For product/buyer evaluation, see [docs/BUYER_EVALUATION_GUIDE.md](docs/BUYER_EVALUATION_GUIDE.md).
+
 ---
 
 ## What works now
@@ -14,6 +16,7 @@ See [docs/VISION.md](docs/VISION.md) for product vision and [docs/ROADMAP.md](do
 - Contact list, search, filters, view, and edit
 - CSV import with column mapping and duplicate detection
 - **Today's list** — plan-capped daily prioritized outreach with snooze and response tracking
+- **Business review** — brokerage health score, weekly action list, stale warm relationships, active opportunities
 - **Weekly review** — overdue, stale contacts, and wins
 - Message drafts (text, email, call, voicemail, social, market update, follow-ups)
 - Advisory briefs (buyer, seller, mortgage, investor, referral partner, etc.)

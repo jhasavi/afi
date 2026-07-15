@@ -11,12 +11,14 @@ import {
   Settings,
   LogOut,
   CalendarRange,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/lib/actions/auth";
 
 const NAV = [
   { href: "/today", label: "Today", icon: Sparkles },
+  { href: "/business-review", label: "Business review", icon: BriefcaseBusiness },
   { href: "/review", label: "Weekly review", icon: CalendarRange },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
